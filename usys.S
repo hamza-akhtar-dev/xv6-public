@@ -29,3 +29,10 @@ SYSCALL(getpid)
 SYSCALL(sbrk)
 SYSCALL(sleep)
 SYSCALL(uptime)
+
+// xv6-threads: system call interrupt config
+
+SYSCALL(clone)
+SYSCALL(join) 
+
+// ----------------------------------------

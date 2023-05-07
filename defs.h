@@ -120,6 +120,10 @@ void            userinit(void);
 int             wait(void);
 void            wakeup(void*);
 void            yield(void);
+// xv6-threads
+int             clone(void(*fcn)(void*, void*), void*, void*, void*);
+int             join(void**);
+// -----------
 
 // swtch.S
 void            swtch(struct context**, struct context*);

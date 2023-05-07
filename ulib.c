@@ -3,6 +3,7 @@
 #include "fcntl.h"
 #include "user.h"
 #include "x86.h"
+#include "mmu.h"
 
 char*
 strcpy(char *s, const char *t)
@@ -104,3 +105,49 @@ memmove(void *vdst, const void *vsrc, int n)
     *dst++ = *src++;
   return vdst;
 }
+
+// xv6-threads - user library functions
+
+int thread_create(void (*start_routine)(void *, void *), void* arg1, void* arg2)
+{
+  void* stack;
+  stack = malloc(PGSIZE) + PGSIZE; // stack grows down in x86
+  return clone(start_routine, arg1, arg2, stack);
+}
+
+int thread_join()
+{
+  void* stack;
+  int rc;
+
+  rc = join(&stack);
+  stack = stack - PGSIZE;
+  if (rc > 0)
+  {
+    free(stack);
+  }
+  return rc;
+}
+
+void 
+lock_init(lock_t *lock)
+{
+  lock->ticket = 0;
+  lock->turn = 0;
+}
+
+void 
+lock_acquire(lock_t *lock)
+{
+  uint myturn;
+  myturn = fetch_and_add(&lock->ticket, 1);
+  while(myturn != lock->turn);  // Important: lock->turn should be volatile
+}
+
+void 
+lock_release(lock_t *lock)
+{
+  fetch_and_add(&lock->turn, 1);
+}
+
+// -------------------------------------

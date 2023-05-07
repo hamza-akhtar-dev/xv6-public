@@ -130,6 +130,21 @@ xchg(volatile uint *addr, uint newval)
   return result;
 }
 
+// xv6-threads - atomic fetch and add
+
+static inline uint fetch_and_add(volatile uint* variable, volatile uint value)
+{
+    asm volatile("lock; xaddl %0, %1"
+      : "+r" (value), "+m" (*variable) // input + output
+      : // No input-only
+      : "memory"
+    );
+    return value;
+}
+
+// -----------------------------------
+
+
 static inline uint
 rcr2(void)
 {

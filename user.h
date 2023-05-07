@@ -1,5 +1,19 @@
+#ifndef __USER__
+
 struct stat;
 struct rtcdate;
+
+// xv6-threads: ticket lock
+
+struct __lock_t
+{
+  uint ticket;
+  volatile uint turn;
+};
+
+typedef struct __lock_t lock_t;
+
+// ------------------------
 
 // system calls
 int fork(void);
@@ -24,6 +38,13 @@ char* sbrk(int);
 int sleep(int);
 int uptime(void);
 
+// xv6-threads: system call user prototypes
+
+int clone(void (*start_routine)(void*,void*), void *, void *, void *);
+int join(void**);
+
+// ----------------------------------------
+
 // ulib.c
 int stat(const char*, struct stat*);
 char* strcpy(char*, const char*);
@@ -37,3 +58,15 @@ void* memset(void*, int, uint);
 void* malloc(uint);
 void free(void*);
 int atoi(const char*);
+
+// xv6-threads: library function user prototypes
+
+int thread_create(void (*start_routine)(void *,void *), void * arg1, void * arg2);
+int thread_join(); 
+void lock_init(lock_t *);
+void lock_acquire(lock_t *);
+void lock_release(lock_t *);
+
+// ---------------------------------------------
+
+#endif

@@ -532,3 +532,112 @@ procdump(void)
     cprintf("\n");
   }
 }
+
+// xv6-threads: clone and join functions
+
+int 
+clone(void(*fcn)(void*,void*), void *arg1, void *arg2, void* stack)
+{
+  struct proc *np;
+  struct proc *p = myproc();
+
+  if((np = allocproc()) == 0)
+  {
+    return -1;
+  }
+
+  np->pgdir = p->pgdir;
+  np->sz = p->sz;
+  np->parent = p;
+  *np->tf = *p->tf;
+  
+  void *parg1; 
+  void *parg2;
+  void *pret;
+
+  parg2 = stack - 1 * sizeof(void *);
+  parg1 = stack - 2 * sizeof(void *);
+  pret  = stack - 3 * sizeof(void *);
+
+  *(uint*)parg2 = (uint)arg2;
+  *(uint*)parg1 = (uint)arg1;
+  *(uint*)pret  = 0xFFFFFFF;
+
+  np->tf->esp = (uint) pret;
+  np->tf->ebp = np->tf->esp;
+  np->tf->eip = (uint) fcn;
+  np->tf->eax = 0;
+
+  np->tstack = stack;
+
+  int i;
+  for(i = 0; i < NOFILE; i++)
+  {
+    if(p->ofile[i])
+    {
+      np->ofile[i] = filedup(p->ofile[i]);
+    }
+  }
+  np->cwd = idup(p->cwd);
+
+  safestrcpy(np->name, p->name, sizeof(p->name));
+ 
+  acquire(&ptable.lock);
+  np->state = RUNNABLE;
+  release(&ptable.lock);
+
+  return np->pid;
+}
+
+int
+join(void** stack)
+{
+  struct proc *p;
+  struct proc *cp = myproc();
+
+  int havekids, pid;
+
+  acquire(&ptable.lock);
+  
+  for(;;)
+  {
+    // Scan through table looking for zombie children.
+    havekids = 0;
+    for(p = ptable.proc; p < &ptable.proc[NPROC]; p++) 
+    {
+      if(p->parent != cp && p->pgdir != p->parent->pgdir)   // Important: Should be && instead of ||
+      {
+        continue;
+      } 
+
+      havekids = 1;
+      if(p->state == ZOMBIE)
+      {
+        pid = p->pid;
+        kfree(p->kstack);
+        p->kstack = 0;
+        p->pid = 0;
+        p->parent = 0;
+        p->name[0] = 0;
+        p->killed = 0;
+        p->state = UNUSED;
+        *stack = p->tstack;   // Important: Dereference the stack pointer
+        p->tstack = 0;
+        release(&ptable.lock);
+        return pid;
+      }
+    }
+
+    // No point waiting if we don't have any children.
+    if(!havekids || cp->killed)
+    {
+      release(&ptable.lock);
+      return -1;
+    }
+
+    // Wait for children to exit.  (See wakeup1 call in proc_exit.)
+    sleep(cp, &ptable.lock);  //DOC: wait-sleep
+  }
+}
+
+// -------------------------------------------
